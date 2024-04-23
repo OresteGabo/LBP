@@ -1,6 +1,8 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
+#include <vector>
 
 // Fonction s pour calculer la valeur en fonction des pixels environnants
 int s(int target, int current) {
@@ -35,29 +37,59 @@ cv::Mat modifyImage(const cv::Mat& inputImage) {
     return outputImage;
 }
 
+// Fonction pour calculer l'histogramme d'une image
+std::vector<int> calculateHistogram(const cv::Mat& image) {
+    // Créer un tableau pour stocker l'histogramme
+    std::vector<int> histogram(256, 0);
+
+    // Calculer l'histogramme
+    for (int y = 0; y < image.rows; ++y) {
+        for (int x = 0; x < image.cols; ++x) {
+            histogram[image.at<uchar>(y, x)]++;
+        }
+    }
+
+    return histogram;
+}
+
 int main() {
     // Lire l'image d'entrée
-    auto inputImage1 = cv::imread("texmos2.s512.tiff", cv::IMREAD_GRAYSCALE);
-    auto inputImage2 = cv::imread("texmos3.s512.tiff", cv::IMREAD_GRAYSCALE);
-    auto inputImage3 = cv::imread("1.4.05.tiff", cv::IMREAD_GRAYSCALE);
-    if (inputImage1.empty() || inputImage2.empty() || inputImage3.empty()) {
+    auto inputImage1 = cv::imread("1.4.05.tiff", cv::IMREAD_GRAYSCALE);
+    if (inputImage1.empty()) {
         std::cerr << "Échec de lecture de l'image d'entrée." << std::endl;
         return -1;
     }
 
-    // Modifier les images
+    // Modifier l'image
     auto outputImage1 = modifyImage(inputImage1);
-    auto outputImage2 = modifyImage(inputImage2);
-    auto outputImage3 = modifyImage(inputImage3);
 
-    // Enregistrer les images de sortie
-    cv::imwrite("outputImage1.jpg", outputImage1);
-    cv::imwrite("outputImage2.jpg", outputImage2);
-    cv::imwrite("outputImage3.jpg", outputImage3);
+    cv::imshow("Image de d'entrée", inputImage1);
+    cv::imshow("Image de sortie", outputImage1);
 
-    // Afficher les images d'entrée et de sortie
-    cv::imshow("Image d'entrée", inputImage3);
-    cv::imshow("Image de sortie", outputImage3);
+    // Calculer l'histogramme
+    std::vector<int> histogram = calculateHistogram(outputImage1);
+
+    // Créer une image vide pour afficher l'histogramme
+    cv::Mat histImage(400, 512, CV_8UC3, cv::Scalar(255, 255, 255));
+
+    // Déterminer la largeur d'une barre d'histogramme
+    int binWidth = histImage.cols / 256;
+
+    // Trouver la valeur maximale dans l'histogramme pour normaliser l'affichage
+    int maxCount = *std::max_element(histogram.begin(), histogram.end());
+
+    // Dessiner l'histogramme
+    for (int i = 0; i < 256; ++i) {
+        int binHeight = cvRound(static_cast<double>(histogram[i]) / maxCount * histImage.rows);
+        cv::rectangle(histImage, cv::Point(i * binWidth, histImage.rows), cv::Point((i + 1) * binWidth, histImage.rows - binHeight), cv::Scalar(0, 0, 0), -1);
+    }
+
+    // Dessiner les axes
+    cv::line(histImage, cv::Point(0, histImage.rows - 1), cv::Point(histImage.cols - 1, histImage.rows - 1), cv::Scalar(0, 0, 0));
+    cv::line(histImage, cv::Point(0, 0), cv::Point(0, histImage.rows - 1), cv::Scalar(0, 0, 0));
+
+    // Afficher l'histogramme
+    cv::imshow("Histogramme", histImage);
     cv::waitKey(0);
 
     return 0;
